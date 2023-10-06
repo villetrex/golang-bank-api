@@ -1,0 +1,168 @@
+// GKE
+From K engine dashboard, open the terminal ,then click on 'connect' to copy the connection command and paste and run in terminal 
+> now we use kubectl to run commands in this terminal (kubernetes controller)
+> kubectl version ---- shows client and server versions 
+
+// Deploy app to k8s using kubectl 
+> kubectl create deployment hello-world-rest-api --image=in28min/hello-world-rest-api:0.0.1.RELEASE
+
+// Now to expose the deployment to the outside world 
+> kubectl expose deployment hello-world-rest-api --type=LoadBalancer --port=8080
+
+> kubectl get events /// get all events that were ran (from pod creation...)
+>kubctl get pods 
+> kubctl get replicaset 
+>kubctl get service
+
+// A POD IS THE SMALLEST DEPLOYABLE UNIT IN k8s
+> node contains pod/pods and each pod has containers(docker)
+>kubctl get pods -o wide // wide verbose output 
+>kubctl explain pods // gives docs for pods 
+>kubctl describe pod <pod-id>
+kubctl get replicaset(s) or rs
+kubctl delete pod <pod-id>
+//replicaset is responsible for monitoring pods and creating another one when one is doen 
+> kubctl scale deployment hello-world-rest-api --replicas=3   // this cretes 3 instances of the pods (adds 2 more if one already exists) and maintains this number of running pods 
+>kubctl get events --sort-by=.metadata.creationTimeStamp
+>kubctl explain replicaset // gives information about the replicaset command 
+>kubctl set image deployment <new_deployment_name>(hello-world-rest-api) <container-name>hello-world-rest-api=DUMMY_IMAGE:TEST   // this sets the deployment to an error image (to simulate what happens  when we make an error in deployment)
+> kubctl get rs -o wide 
+> kubctl get pods /// see invalid pod with iinvalid image name 
+> kubctl describe pod <invalid pod id>
+>kubctl set image deployment <new_deployment_name>(hello-world-rest-api) <container-name>hello-world-rest-api={new-image-version} // this creates a roll-over deployment which deletes the pods in the previous image version replica while creating a new one.
+> Each deployment is connected to the public using a service. 
+> There are different types of services (LoadBalancer, ClusterId, NodeIp)
+> exposing Deployments command create LoadBalancers for a service for the specific cloud provider by default(here Google LoadBalancer tool)
+> kubernetes runs on the clusterIP , clusterIP can only be ran inside a cluster. (connects nodes in a cluster)
+
+WORKLOADS (FROM google gke console ui) shows tasks that have been ran 
+
+
+KUBERNETES ARCHITECTURE 
+Master Node: 
+> Api server 
+> Distribute Database(etcd)
+> Scheduler (Kube Scheduler)
+> Controller Manager (Kube-controller-manager)
+
+etcd --- stores the configurations for kubernetes (pods, services)etc and generate cluster state 
+Api server --- this is how kubctl and gke/aws eks/ Aks communicate with the kubenetes cluster 
+scheduler is responsibe for scheduling pods on appropriate nodes 
+controller manager, manages the overall state of the cluster. Keeps controll of the desired state and changes of the cluster 
+
+
+WORKER NOEDS 
+> Node agent (kubelet) // monitors the condition of the node and reports to the master node. (e.g when a pod is down or created )
+> Networking component(Kube-proxy)  // creates network e.g exposign services around nodes and pods 
+> Container runtime (CRI-docer, rkt or any oci(open container interface)) // provides an environment for containers to run 
+
+
+When application goes down, the master node keeps working. 
+we might not be able to make changes to them, but accessing the url still gives response from the worker nodes 
+
+
+>kubectl get componentstatuses // shows master nodes components statuses 
+// worker nodes can also just be called the 'nodes'
+
+REGIONS AND ZONES 
+We need regions for availablility(Distribute app in different regions), latency(app is closer to user) and Legal requirements (countries might not want citizen's data to be stored outside the country )
+Zones are physically isolated data centers within a region. 
+
+
+So... for each region(provides accross the globe), we have multiple zones(physical data centers in the region)
+// DEPLOYING APP FROM CMD OR TERMINAL 
+> 1. GCLOUD cmd interface for googlec cloud 
+> Kubctl --- cmd interface for kubernates
+
+
+
+AFTER FIRST LOGIN, THE FOR SUBSEQUENT LOGINS, WE USE: 
+> gcloud auth login 
+
+// To change selected project 
+> gloud config set project <Project_id>
+
+
+* Run `gcloud --help` to see the Cloud Platform services you can interact with. And run `gcloud help COMMAND` to get help on any gcloud command.
+* Run `gcloud topic --help` to learn about advanced features of the SDK like arg files and output formatting
+* Run `gcloud cheat-sheet` to see a roster of go-to `gcloud` commands.
+
+> kubctl version // to view the version of k8x instaled 
+> To connect to terminal, just like previously, we click the connect button on gconsole and copy the connection string 
+
+
+
+> gcloud connection string : 
+gcloud container clusters get-credentials cluster-1 --zone us-central1-c --project ville-toursECT_ID]”
+
+
+// TO VIEW HISTORY OF KUBCTL COMMANDS 
+> kubectl rollout history deployment hello-world-rest-api 
+> kubctl set image deployment hello-world-rest-api hello-world-rest-api=in28min/hello-world-rest-api:0.0.3.RELEASE --record=true 
+
+
+//now kubectl rollout history deployment hello-world-rest-api // shows change cause now 
+> kubectl undo deployment hello-world-rest-api --to-revision=1   // to undo a deployment 
+> kubectl rollout deployment hello-world-rest-api pause // pause deployment 
+> kubectl get pods 
+> kubctl log <pod_id>
+> kubctl log -f <pod_id>
+
+>kubectl get deployment hello-world-rest-api -o yaml // shows status of pods in deployment in yaml 
+> kubectl get deployment hello-world-rest-api -o yaml > deployment.yaml 
+> kubectl get service hello-world-rest-api -o yaml > service.yaml 
+// we can now edit config and re-create 
+> kubectl apply -f deployment.yml 
+
+
+// we can now copy the service and paste below in the deployment file (under ---[three hyphens])
+
+// we can delete a deployment/service/replicaset using their central label 
+>kubctl get all -o wide // to view resources and labels 
+> kubctl delete all -l app=hello-world-rest-api(label)
+
+
+// deploying from a file 
+> kubctl apply -f deployment.yaml 
+> kubctl get all // get resources ... now see deployment and service created 
+> kubectl get svc --watch 
+> watch curl <site_url> 
+> kubectl diff -f deployment.yaml // see difference betwwen file and upstream resources 
+
+// AN ENV OF PORTS IS CREATED AT DEPLOYMENT TIME 
+> CURRENCY_EXCHANGE_SERVICE_HOST 
+// but this can be configured manually using env: property in the deployment 
+/ Service discovery points domains(of pods/deployment) running on the service
+
+> so from currentcy conversion, we can access currency exchange domain using: process.ENV.CURRENCY_EXCHANGE_SERVICE_HOST 
+// kubernetes adds hypens(-) , SERVICE_HOST and capitaliztion to get the dns env automatically from each deployment 
+// this constitues service descovery where a new service automatically knows the internal details (e.g dns)  of other services using exposed as environment variables 
+
+
+MICROSERVICE CONTAINARIZATION 
+centralized ocnfiguration using configMaps 
+
+1. create configMap file 
+2. kubectl apply -f {config_map-file.yaml}   // creates the configmap file 
+3. kubectl get configMaps  
+4. kubectl describe configmap {configmap_name}
+
+with microservice, using a different load balancer for each deployment can be expensive. 
+to fix this, we use an ingress to create a load balancer for these different deployments internally and expose them using service 
+
+// we change the 'type' from nodebalancer services to 'NodePort'
+This makes the services internal with no external ips 
+Then we expose an external Ip using ingress
+// see ingress file. 
+// creation of ingress takes a long time... say 15-20 mins 
+
+
+
+
+
+
+
+
+
+
+

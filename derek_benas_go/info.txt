@@ -1,0 +1,145 @@
+var pl = fmt.Println // this is an alias for fmt.Println to make calling it short. println automatically adds a space at the end of the string
+
+The go programs looks for the main function and starts execution
+cli reading
+reader := bufio.NewReader(os.Stdin)
+name, err := reader.ReadString('\n') // read until the user hits the enter key
+'_' is called the blank identifier
+log.Fatal()
+log.Panic()
+
+variables must begin with a letter. When a variable starts with a capital letter, it's considered exported and can be used outside the package
+
+var vName string = "derek"
+the 'var' keyword can always be ommited
+
+var v1,v2 = 1.2,3.4
+DATA TYPES
+int, float64, bool, string, rune -- which is empty string == ""
+
+to check data type
+pl(reflect.TypeOf(25))
+pl(reflect.TypeOf(3.24))
+pl(reflect.TypeOf(true))
+pl(reflect.TypeOf("hello))
+pl(reflect.TypeOf("🥲))
+
+TYPE CASTING
+v1 := 1.5
+v2 = int(v1) // converts v1 from float to int. i.e, takes away the decimal part of the number
+v3 := "5000"
+v4, err := strconv.Atoi(v3)  // string convert from Ascii to integer, converts the "5000" string to 5000 integer
+
+v5 := 5000
+v6 := strconv.Itoa(v5) // string convert from integer to ascii... converts the 5000 number to "5000" string
+
+v7 := "3.14"
+if v8, err := strconv.ParseFloat(v7, 64); err == nil {   // parse string to float
+    pl(v8)
+}
+
+FORMAT PRINTING
+"%f" == float
+"%d" === integers
+"%s" === string
+
+v9 := fmt.Sprintf("%f", 3.14 )
+
+STRINGS == ARRAY OF BYTES
+s1 = "A word"
+replacer := strings.NewReplacer("A", "Another")
+s2 = replacer.Replace(s1) // replaces "A" with "Another" in the string
+
+pl("length :", len(s2))
+pl("contains another", strings.Contains(s2, "Another"))  // checks if a string contains
+
+pl("o index", strings.Index(s2, "0")) // just like indexOf in javascript
+
+pl("Replace" , strings.Replace(s2, "o", "0", -1)) // -1 here means replace all occurences. -2 means replace the first 2 occurences
+
+s3 := "\nsome words \n"  // \t \n \\ \"
+s3 = strings.TrimSpace(s3) // gets rid of all whitespaces in the string
+pl("split by delimeter" , strings.Split("a-b-c-d", "-"))
+pl("to lowercase", strings.ToLower(s3)) //
+pl("to uppercase", strings.ToUpper(s3)) // upper case
+pl("Prefix", strings.HasPrefix("tococat", "toco")) // checks if the "tococat" strings begins with "toco" // returns true
+pl("suffix", strings.HasSuffix("tococat", "toco")) // checks if the "tococat" strings ends with "toco"  // returns false
+
+
+
+RUNES
+// in go, charcters are called runes, and runes are unicodes that represent characters
+rstr = "abcdefg"
+pl("Run count", , utf8.RuneCountInString(rstr))
+for i, runeval := range rstr {
+    fmt.Printf("%d :%#U : %c\n", i, runval, runval) // the %#U is for the unicode and %c is the character itself
+}
+
+TIMES
+now := time.Now() // current time
+pl(now.Year(), now.Month(), now.Day())
+pl(now.How(), now.Minute(), now.Second())
+
+mint := 1
+mint = mint + 1
+mint += 1
+mint++
+
+
+PRECISION WITH FLOAT VALUES
+pl("float precisions", 0.45657687564534324354657698765789 + 0.111111111111111111111111)
+
+TIME
+seedSeconds := time.Now().Unix()
+rand.Seed(seedSeconds)
+rand.Int(50) + 1
+
+
+STRING FORMATING
+fmt.Printf("%.2f radians", math.Sin(r9)) // floating point to 2 deciman places
+%d : Interger
+%c: Character
+%f: Float
+%t: Boolean
+%s: String
+%o : Base 8
+$x : Base 16
+%v : Guesses based on data type
+%T: Type of supplied value
+
+fmt.Printf("%9f\n", 3.14) // nine spaces after the variable
+fmt.Printf("%.2f\n", 3.14) // 2 deciman places
+fmt.Printf("%9.f\n", 3.14) // remove decimal places and nine spaces before the value
+
+fmt.Sprintf
+formats a string and returns it instead of printing it in standard output
+sp1 := fmt.Sprintf("%9.f\n", 3.1415234)
+pl(sp1)
+
+FOR LOOPS
+// for initialization; condition; postStatement {BODY}
+for x:=5; x >= 1; x-- {  // x is by default local to this loop
+    pl(x)
+}
+
+FOR LOOPS CAN ALSO BE USED TO IMPLEMENT WHILE LOOPS
+fx := 0;
+for fx < 5 {
+    pl(fx)
+    fx++
+}
+
+First convert arrays to slices and then to string. This works like array.join(",") in javascript
+byteArr := []byte{a,b,c}
+bStr := string(byteArr[:])
+fmt.Println("string converted from slice", bStr)
+
+FORMATING VSCODE
+Add below to settings.json file
+
+"gopls" : {
+    "experimentalWorkspaceModule": true
+}
+
+go mode init exampleProject // creates a new go module with go.mod file
+A module contains one project or library and a collection of packages

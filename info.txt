@@ -1,0 +1,705 @@
+VIDEO  CALL APP
+https://www.youtube.com/watch?v=RyfpFT4GbQw
+
+AZURE K8S PIPELINE: https://dev.to/gbengelebs/setting-up-a-ci-cd-pipeline-using-azure-devops-4gb
+https://medium.com/microsoftazure/creating-an-azure-devops-ci-cd-pipeline-for-your-kubernetes-microservice-application-450d90bf58df
+
+Escalidraw.com // for diagrams
+
+EXPLANATIONS FOR TESTS, TESTIFY MOCKS AND GOMOCK
+https://www.codecentric.de/wissens-hub/blog/gomock-vs-testify#gomock
+
+Read about: Mongodb aggregation pipeline
+Railway hosting service for golang
+PlanetScale for hosting our db
+
+// GOLANG FROM SCRATCH
+https://www.golangprograms.com/example-of-golang-crud-using-mysql-from-scratch.html
+
+STORY BOOK REACT:
+yarn global add dbdocs
+
+dbdiagram.io for creating db diagram from sql code // DBML === Database diagram markup language
+https://mobbin.com/browse/ios/apps
+
+Table accounts as A {
+    id bigserial [pk]
+    counter varchar [not null]
+    balance bigint [note: 'can be nagative or positive values']
+    currency Currency
+    created_at timestamptz [default: `now()`]
+    owner varchar [not null]
+    Indexes{
+        owner
+    }
+}
+
+Enum Currency {
+    USD
+    EUR
+}
+
+Table Entries {
+    id bigserial [pk]
+    account_id bigint [ref: > A.id]
+}
+
+TABLE PLUS --- a great gui client for interacting with different sql databases
+
+> docker ps -- view running containers
+> docker images -- view downloaded images
+> docker log container_namd_or_id -- like kubctl describe pod_id --- to inspect activities of a container
+> docker exec -it container_id command --- run command inside container
+> docker stop container_id
+> docker start container_id
+> docker rm container_id/name
+> docker exec -it container_id /bin/sh
+> docker ps -a // all stoped or running containers
+
+>psql -- launch postgres shell
+
+db schema migration in golang
+useing golang-migrate library from their github repo
+> brew install golang-migrate
+
+CREATING A MIGRATION
+https://www.freecodecamp.org/news/database-migration-golang-migrate/
+> migrate create -ext sql --dir db/migration -seq init_schema  // seq is for sequential version... 001,002...
+// to migrations for up and down migrations scripts are created
+
+The format of those files for SQL are:
+{version}_{title}.down.sql
+{version}_{title}.up.sql
+
+RUNNING MIGRATION UP
+$ migrate -path database/migration/ -database "postgresql://username:secretkey@localhost:5432/database_name?sslmode=disable" -verbose up
+Now in your Postgres shell, you can check newly created tables by using the following commands:
+> psql
+\d+
+\d+ table_name DESCRIBE TABLE
+
+RUNNING MIGRATION DOWN
+$ migrate -path database/migration/ -database "postgresql://username:secretkey@localhost:5432/database_name?sslmode=disable" -verbose down
+down script deletes created tables or alters
+e.g down.sql
+DROP TABLE IF EXISTS accounts
+
+> createdb --username=root owner=root simple_bank
+> dropdb simple_bank
+
+
+How to Resolve Migration Errors
+If a migration contains an error and is executed, migrate will prevent any further migrations from being run on the same database.
+An error message like Dirty database version 1. Fix and force version will be displayed, even after the error in the migration is fixed. This indicates that the database is "dirty" and needs to be investigated.
+It is necessary to determine if the migration was applied partially or not at all. Once you've determined this, the database version should be forced to reflect its true state using the force command.
+migrate -path database/migration/ -database "postgresql://username:secretkey@localhost:5432/database_name?sslmode=disable" force <VERSION>
+
+
+
+
+How to Add Commands in a Makefile
+migration_up: migrate -path database/migration/ -database "postgresql://username:secretkey@localhost:5432/database_name?sslmode=disable" -verbose up
+
+migration_down: migrate -path database/migration/ -database "postgresql://username:secretkey@localhost:5432/database_name?sslmode=disable" -verbose down
+
+migration_fix: migrate -path database/migration/ -database "postgresql://username:secretkey@localhost:5432/database_name?sslmode=disable" force VERSION
+Now, you can run $ make migration_up for 'up', $ make migration_down for 'down', and $ make migration_fix to fix the migration issue.
+
+Before running the makefile, ensure that the correct version number is included in the migration_fix command.
+
+
+CRUD IN GO
+using vanilla go : https://www.golangprograms.com/example-of-golang-crud-using-mysql-from-scratch.html
+Gorm : slow
+SQLX : fast but errors are only discovered at runtime
+sqlc : fast and small code but only supporst postgres atm
+comparism reference: https://dev.to/techschoolguru/generate-crud-golang-code-from-sql-and-compare-db-sql-gorm-sqlx-sqlc-560j
+
+SQLC
+https://github.com/kyleconroy/sqlc
+>sqlc help // to see commands
+> sqlc init // to initialize sqlc.yaml
+> sqlc generate // to generate db based on sqlc.yaml file configs
+Initialize a new Go module named tutorial.sqlc.dev/app
+>go mod init tutorial.sqlc.dev/app
+https://docs.sqlc.dev/en/latest/tutorials/getting-started-postgresql.html
+
+
+DB DRIVERS
+sqlc only provides support for postgres db, but we need to install driver for it to communicate with
+go get github.com/lib/pq
+
+go mod tidy // to clean up go.mod ... add or remove  dependencies
+
+
+running tests
+go get github.com/stretchr/testify
+
+
+TRANSACTIONS ARE ONLY RUN IF REQUEST satisfied the acid property
+ATOMICITY: Either all operations are complete successfully or the transaction faisl and the db is unchanged
+CONSISTENCY: The db state must be valid after the transaction. All contraints must be satisfied
+ISOLATION: Concurrent transactions must not affect each other
+DURABILITY: Data written by a successful transaction must be recorded in persistent storage
+
+TO PERFORM A TRANSACTION AND SIMULATE DEADLOCKS IN PSQL
+> psql
+> BEGIN
+> SELECT * FROM authors WHERE id = 1 FOR UPDATE // attaching the FOR UPDATE statement creates a lock on the table
+> ROLLBACK // to rollback changes
+> COMMIT // to commit changes
+
+// in the queries, add the 'FOR UPDATE' statement to the END OF THE SELECT statement in order to endicate a SELECT statement which should wait for any update stetments on that row to be commited before it runs
+SELECT * FROM accounts WHERE id = $1 LIMIT 1 FOR UPDATE;
+
+
+// to prevent deadlocks, we need to tell the db that the table being updated which is constraned by a foreign key(id) isn't updating the id
+SELECT * FROM accounts WHERE id = 1 FOR NO KEY UPDATE;
+
+EXAMPLE OF READ AND UPDATE
+UPDATE accounts SET balance = balance + sqlc.arg(amount) WHERE id = sqlc.arg(idh) RETURNING *
+
+
+POSTGRES CODE TO VIEW DEADLOCKS
+SELECT  a.application_name, l.relation::regClass,l.transactionid,l.mode,l.locktype,l.GRANTED,a.username,a.query,a.pid FROM pg_stat_activity a JOIN pg_locks l on l.pid = a.pid WHERE a.application_name = 'psql' ORDER BY a.pid
+
+update using data from another table
+UPDATE YourTable
+SET Col1 = OtherTable.Col1,
+    Col2 = OtherTable.Col2
+FROM (
+    SELECT ID, Col1, Col2
+    FROM other_table) AS OtherTable
+WHERE
+    OtherTable.ID = YourTable.ID
+
+
+DATABASE ISOLATION
+Isolation is an Acid property of a transaction in which concurrent transactions do not affect each other
+A database runninng at a lower level of isolation can lead to   'READ PHENOMENA'
+READ PHENOMENA examples:
+1. Dirty Read: Happens when a transaction reads data written by other concurrent transactions that has not been commited yet. This is terrible as we don't know if that transaction will later be commited or rolled back and might lead to reading incorrect data incase a rollback occurs
+2. Non-repeatable read: A transaction reads the same row twice and sees different values because it has been modified by other commited transaction.
+3. Phantom Read: A transaction re-executes a query to find rows that satisfiy a condition and sees a different set of rows, due to changes by other commited transactions. It's similar to non-repeatable read but this is for reading multiple rows at once
+4. Serialization Anomaly: The result of a group of concurrent commited transactions is imposiblle to achieve if we try to run them sequentially in any order without overlapping each other.
+
+
+In order to effect isolation, 4 standard isolation levels were defined by ANSI (American national standards institute)
+1. Low level isolation: Read and Uncommited . Can see data written by uncommited transactions leading to a dirty read phenomenon
+2. Read Commited: Only see data written by committed transactions. The prevents drity reads
+3. Repeatable Read: Ensures that the same query always returns same results even if other transactions have commited new changes that satisfies the query
+4. Serializable : Can achieve same result if execute transactions serially in some order instead of concurrently
+
+TESTING ISOLATION WITH MYSQL
+// first connect to database
+> select @@transaction_isolation // shows isolation level of db in current terminal session
+> select @@global.transaction_isolation
+> go test
+> go test -v // verbose output
+> go test -v --cover // verbose output with coverage
+
+// to change isolation level for a session
+> set session transaction isolation level read uncommited
+> select @@transaction_isolation // now shows read uncommited
+
+Logic: open 2 terminals and set their isolation levels to read umcommited
+// make queries in read uncommited transaction levels
+// then make queries in 'READ COMMITED' isolation levels
+
+> set session transaction isolation level read committed
+READ COMMITED  isolation level can only prevent dirty read, but still allows non-repeatable read and phantom read phenomena
+
+> set session transaction isolation level repeatable read
+// in mysql, if one transaction updates a row, and another transaction in repeatable read which has previously read that row, tries to read it agian, it gets the previous read value, but if this second transaction updates that same row from it's end and tries to read it again, then it gets a value interferred by the orginaally commited output from transaction one. This shouldn't be the case as it's supposed to not be interfeered by another commited change from a different transaction. This is how postgres implements this fix.
+
+> set session transaction isolation level serializable // to prevent above issue
+> select @@transaction_isolation
+
+// In serializable isolation, mysql converts all SELECT statements to SELECT FOR SHARE which allows other transactions to read the rows but not delete or update them
+// however, this has a timeout duration, if the lock isn't released after a timeout, an error is thrown and we need to re-run the waiting transaction
+// before using a serialization isolation mode, make sure you've implemented a transaction retry strategy
+// While update query from transaction 2 is being blocked by the SELECT query from transaction1, running an update query on transaction1 will lead to a deadlock, since transaction2 has not been retried and transaction1 is trying to update thesame row which is supposed to be updated by transaction2
+// so, commit t1 so t2 can be retried and lock released before running update in t1
+
+// in mysql, we set transaction level before starting the transaction, but in postgres, we start the transaction and set the transaction level inside it and it only exists for that transaction
+>begin;
+> set transaction isolation level read uncommitted;
+> show transaction isolation level;
+
+POSTGRES largeley only implements 3 transaction isolation level, the Read committed and read uncommitted function thesame in postgres so there never a case of dirty read
+> set transaction isolation level read repeatable;
+// here all read queries return same results repeatedly, but update from tx2 after tx1 is commited will throw an error
+> set transaction level
+// a pure use case of serialization anomaly is when we want to insert a new record in the database using the sum of the existing balance.
+e.g if the sum of existing balance is 270,
+tx1 after commit will add 270 and tx2 after commit will also add 270 even though tx1 already updated balance and added a new entry with new balance but wasn't commited yet. if it was committe before tx2, then tx2 should have balance of 540 which cummulates preexisting balance and the balance added by tx1's new entry
+// using serialization level isolation to fix this.
+
+> set transaction level serialization
+// with this, commiting the second transaction will throw an error.
+while mysql prevents serialization anomaly by using locking mechanism while postges uses dependecy
+
+
+DEPLOYMENT USING GITHUB ACTIONS
+> workflow -> file -> runners (servers used to run jobs) -> steps -> tasks
+jobs run in parallel unless 'needed by' command is added to show depends on
+> stpes are rerial commands consisting of actions and action is a stand alone command ran serially and can be reused
+
+
+
+USING GIN HTTP ROUTERS
+>$ go get -u github.com/gin-gonic/gin
+
+
+
+CREATING CUSTON QS LIBRARY
+function formatParams( params ){
+  return "?" + Object
+        .keys(params)
+        .map(function(key){
+          return key+"="+encodeURIComponent(params[key])
+        })
+        .join("&")
+}
+And you would use it this way to build a request.
+
+var endpoint = "https://api.example.com/endpoint"
+var params = {
+  a: 1,
+  b: 2,
+  c: 3
+}
+
+var url = endpoint + formatParams(params)
+//=> "https://api.example.com/endpoint?a=1&b=2&c=3"
+
+READING EVN WITH VIPER
+go get github.com/spf13/viper
+https://towardsdatascience.com/use-environment-variable-in-your-next-golang-project-39e17c3aaa66
+
+
+TEST DB USING GO MOCK
+https://github.com/golang/mock
+go install github.com/golang/mock/mockgen@v1.6.0
+> which mockgen
+ move go bin to path folder
+ > vi ~/.zshrc
+ // Add below code at file start
+ export PATH=$PATH:~/go/bin
+ :wq to save file and quite vim
+
+
+USING MOCKGEN TO GENERATE DB MOCKS USING INTEFACES. WE'RE USING OUR STORE INTERFACR IN THIS info
+mockgen -package mockdb -destination db/mock/store.go github.com/techschool/simplebank/db/sqlc Store
+// creates a new file in db/mock/store.go.
+Generates all required functions of the store interface. 2 important structs. Mockstore and mockrecorder. note the package name
+
+
+// gin uses debug mode by default and ouptus lots of logs in console during tests, this can make logs unreadable, therefore, in api/main_test.go, we set mode to 'gin.TestMode' to reduce this.
+
+
+IN order to mutate the table, we create new migrations
+> migrate create -ext sql -dir db/migration -seq add_users // generate 2 migration files
+
+
+bcrypt uses a new salt to create a new hash every time it's called in order to prevent 'Rainbow table' attack.
+
+WHY PASETO IS BETTER THAN JWT
+Paseto: Platform-Agnostic Security Tokens -- by paragon initiative enterprises
+// add go uuid package in order to use uuid in go
+> go get github.com/google/uuid
+
+
+golang jwt tokens:
+https://github.com/dgrijalva/jwt-go
+> go get github.com/dgrijalva/jwt-go
+
+
+BUILDING DOCKER IMAGE
+docker  build -t simplebank:latest .   // produces large image size
+to reduce image size, we use multi stage pipeline since all we need is the output binary and not the entire project files and dependencies in the image
+
+
+TO RUN THE IMAGE
+> docker run --name simplebank -p 8080:8080 simplebank:latest
+> docker rm simplebank // to remove container
+> docker rmi simplebank // to remove image
+
+// use -e option to set env viriables while running container
+> docker run --name simplebank -e GIN_MODE=release -p 8080:8080 simplebank:latest
+
+runing simplebank will not have connection to postgres container which is also running since they are on different networks, they have different ip addresses  though, we connect to postgres using localhost, but they are still on different networks
+> docker container inspect postgres12  // to see the network settings of the postgres container
+
+// to fix this, the easiest way is to replace localhost with the ipaddress of the postgres container
+// DB_SOURCE=postgresql://root:secret@{postgres_ip_address}/simplebank?sslmode=disable
+but the above isn't good as we have to rebuild the image everytime the ip address of the postgres container changes
+
+since we're using viper, we can pass env via the docker run command and it'll override the postgres address
+
+> docker run --name simplebank -e DB_SOURCE="postgresql://root:secret@{postgres_ip_address}/simplebank?sslmode=disable" -p 8080:8080 simplebank:latest
+// note from above command: we wrap the db_source in double quote since it contains special characters
+
+> docker network
+> docker network inspect bridge
+
+
+// containers running in thesame network can connect to each other using their name or ipaddress. but this does not apply to the bridge netwok and note that this is what our postgres and simplebank containers were running on
+// so we need to create a custom network and add both containers to it
+> docker network --help
+> docker network create bank-network
+> docker network connect --help
+> docker network connect bank-network postgres12
+> docker network inspect bank-network // see that the postgres12 container has been added to it's list of containers
+> docker container inspect postgres12 // see it's now connected to bank-network and default bridge network
+> docker build -t getting-started  // builds the image with name
+> docker tag getting-started YOUR-USER-NAME/getting-started // attaches registry, repository and tags to name
+> docker push YOUR-USER-NAME/getting-started // push to registry -> repository
+
+Play with Docker uses the amd64 platform. If you are using an ARM based Mac with Apple Silicon, you will need to rebuild the image to be compatible with Play with Docker and push the new image to your repository.
+
+To build an image for the amd64 platform, use the --platform flag.
+
+ docker build --platform linux/amd64 -t YOUR-USER-NAME/getting-started .
+Docker buildx also supports building multi-platform images. To learn more, see Mult-platform images.
+
+
+
+// run simplebank with bank-network and use 'postgres' container name in db_source connection string
+docker run --name simplebank --network bank-network -e DB_SOURCE="postgresql://root:secret@postgres12/simplebank?sslmode=disable" -p 8080:8080 simplebank:latest
+
+running 2 or more services from thesame docker compose file automatically creates a new network and adds them to it
+
+we use #!/bin/sh in docker file as bash isn't available since we're using an alpine image
+set -e // in the start.sh file says exit the shell immediately if the command returns a non zero status
+exec "$@" // means take all arguements passed to the script and run it
+
+
+depends_on doesn't make sure that the postgres service is ready before running our api image
+// search of depends_on on the docs.docker page, we can use sh-compatible wait-for script tool to implment depends_on
+run > chmod -x start.sh // to make it executable first
+
+
+As in our case of docker-compose file, when we modify the entry point, it also overrides the entry point and cmd of the dockerfile
+
+GENERATING RANDOM STRINGS USING OPENSSL
+> openssl rand -hex 64 | head -c 32 // generate 64 bytes random string and take the first 32 characters
+LOGING TO AWS CLI
+> download cli package bin
+> aws configure
+>ls -l ~/.aws
+> cat ~/.aws/credentials // shows profiles
+> cat ~/.aws/config // shows regions and output formats for different profiles
+// read secret manager values
+> aws secretsmanager get-secret-value --secret-id super_bank --query SecretString --output text
+
+// we then use jq which is a lightweight cli json processor to read the json output to .env format for key-value pairs
+// jq is available on official ubuntu
+> aws secretsmanager get-secret-value --secret-id simple_bank --query SecretString --output text | jq -r 'to_entries|map("\(.key)=\(.value)")|.[]' > app.env
+Pulling image from private repo. We have to login to ecr fir info
+// since it's a private repo, we have to login to ecr first before we can pull the image
+> searh for aws ecr get-login-password on google
+This will give us command we can use to make aws api call to get an authentication token that docker can use to login our private registry
+
+>aws ecr get-login-password --region us-west-1 | docker login -username AWS --password-stdin {ecr registry url without the name of the image}
+> docker pull {ecr/repo/image/tag}
+> docker run {image}
+
+
+KUBERNETES
+Automating deployment, scaling and managment of contenerized applications
+
+consits of 2 main parts
+1. Control plane which runs on the master node
+2. Worker nodes
+
+CONTROL PLANE:
+manage worker nodes and pods of the cluster
+1. Api server: which is the frontend of the control plane. it exposes kubernetes api to interact with all other components of the cluster
+2. etcd: persistent store which acts as kubernetes backend store for all cluster data
+3 scheduler: Which monitors newly cretaed pods with no assigned node and selects node for them to run on
+4. Control manager: which is a combination of different controllers
+a. Node controller: notices and responds when nodes go down
+b. Job controller: watches for jobs or one-off tasks and creates pods to run them
+c. End-point controller: which populates the endpoint object or join several services and pods
+d. Service account and token controller: creates default account and api access token for new namespaces
+5. Cloud controller manager: link you cluster into your cloud provider api and seperate out the components that interact with the clooud provider platform from the componets that only interact with your cluster
+a. node controller: checking the cloud provider to determine if none responding nodes have been deleted or not
+b. route controller: for setting up routes in the underlying cloud infrastructure
+c. service controller: for creating, updating and deleting cloud load balancers
+a,b,c above are categorized as the cloud provider api
+
+
+Worker nodes:
+1. Kubelet agent that makes sure containers run inside pods, supports container runtimes like docker, containerd, CRI-O
+2. Kube-proxy :maintain network rules, allow communication with pods
+
+
+The cloud services manage the master nodes for us, we simply need to add worker nodes, connect to the cluster via a client tool like kubectl and deploy our application to it
+> Afer configuring the master node, configuring the worker node requires eks roles. choose amazonEKS_CNI_POlicy , AmazonEKSWorkerNOdePolicy, AmazonEC2containereregisteryreadonly
+
+
+CONNECTING TO K8S USING KUBCTL AND K9S
+> brew install kubectl
+< kubectl cluster info
+> aws eks update-config --name simple-bank --region eu-west-1
+// grant user access by granting user group eks -> read/write/update/delete policy
+> ls -l ~/.kube
+> cat ls -l ~/.kube
+
+> aws eks update-config --name simple-bank --region eu-west-1 //addsnew context kube/config file
+// incase you have multiple contexts whichlinke to different k8 cloud provider, use below command to select what provide to connect to
+> kubectl config use-context arn:aws:eks:eu-west-1:0897898:cluster/simple-bank
+// it's only the user that created the eks that has access to connecting with it. to fix it:
+> aws sts get-caller-identity // show logged in  aws user profile
+> cat ~/.aws/credentials
+
+from aws console -> clicke my security credentials page from profile image -> credentials -> create new access key
+vim ~/.aws/credentials
+
+[default]
+aws_access_key =
+aws_secret_access_key =
+
+[github]
+aws_access_key =
+aws_secret_access_key =
+
+> kubctl cluster-info
+// now give githubci user access to this credentials as well
+> export AWS_PROFILE=github
+> export AWS_PROFILE=default  //login back to default profile that created the eks
+// add eks/aws_auth.yaml file
+> kubectl apply -f eks/aws-auth.yaml
+>  export AWS_PROFILE=github
+> kubctl cluster-info
+> kubctl get service
+> kubectl get pods
+
+// USING K98S FOR SHORTER kubectl names
+> brew install k9s
+> k9s
+> :ns // shows all available namespaces of ht clustr
+> :service // shows all services
+> :pods
+> :cj // shows cron jobs running on the louster
+> :nodes // shows all available nodes on the cluster
+
+
+
+DEPLOY APP TO KUBERNETES
+A node in aws eks is basically an ec2 intance
+make suer the capacity of the nodes in the cluster based on the ec2 instance is high enough
+describe a nod to see details of the node
+IN case of 'too many nodes' event error, describe the cluster, to see the maximum number of running.
+4 nodes are spinned up by default. Upgrade node to higher than t3.micro instance in order to accomodate higher number of nodes
+
+maximum number of pods that can run on an ec2 instance depends on the number of eni(ELASTIc network interfaces) and the numbers of ips per eni allowed on that instance
+> search eks github to see formula to compute eni for an ec2 instance
+
+no of enis * (no of ipv4 per eni -1) + 2
+search for "ip addresses per network interface per instance type" to see number of enis for each instance type. then compute the maths using the furmular above
+> or just search for lists of number of  pods in ec2 instance
+
+delete previous t3.micro node group and create a new t3.small node group
+// go back to k9s and press ctrl D to delete existing deployment
+> kubectl apply -f eks/deployment.yaml
+
+
+set > type: ClusterIP in services.yaml to LoadBalancer // to expose an external ip for the eservice
+nslookup domain name // aws netwrok balancer and app ip addresses are generated
+
+CLOUDFLARE
+> Security trails
+> Censys > parsed.names.raw.cloudflare.com /// in the search
+
+
+AWS ROUTE53
+A hosted zone is used to configure how to handle requests to the domain name. E,g route traffic to an ec2 instance or eks service
+TRansfer lock is used to lock the domain from being transfered to anothre register
+
+after registring the domain name, aws automatically creates a hosted zone. We then navigate to the hosted zone and configure routing traffic
+ns record: contains a list of name servers where the internet could find the ip addresses of our domain
+soa : start of authority record : stores important information about the domain
+
+In order to route traffic to our service we create an 'A' record.
+insert 'api' as subdomain, choolse an 'A record' type and use an 'Alias to Network Load Balancer' , eu-wext-1 regin and then paster the eks service load balancer name
+> nslookup api.simplebank.org // shows the 2 ipaddresses attached to the routed eks service
+
+USING INGRESS TO SETUP DIFFERENT ROUTING RULES FOR MULTIPLE SERVICES IN K8S
+set back service type to 'ClusterIP' as we don't want it to be publicly available
+// now we make services available externally using the ingress
+After configuring the ingress.yaml file, we still to install ingress controller to our eks, search for this npm package and install it via cli for your particular cloud provider
+inspect the ingress now see the new ip address created
+// updated the hosted zone alias to that of the ingress
+> use inspect class resource to add class to the ingress as nginx
+
+UPDATE INGRESS TO ENABLE SSL, TLS AND HTTPS
+// connection between client and our kubernetes isn't secured, so we add a tsl certification.
+use cert-manager for kubernetes to do so
+
+> run the kubctl apply command for cretmanger
+> kubctl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.4.0/cert-manager.yaml
+
+Http runs on port 80 while https on port 443
+github
+> git rebase master
+> git rebase continue // to continue rebase process after conflicts have been resolved
+> git push -f <branch>
+
+
+DBDOCS
+> yarn global add dbdocs
+> dbdocs login
+> dbdocs build docs/dbml
+> dbdocs password --set secret --project simple_bank
+
+
+
+GRPC : google remote procedure call
+CNCF: Cloud native computing foundation
+
+HOW IT WORKS
+1. DEFINE API AND DATA STRUCTURES : defined the rpc api and it's request/response structure USING PROFOBUF
+2. Generate grpc stubs /// generate grpc codes for the server and the client
+3. Implement the server
+4. Use the client
+
+why grpc
+1. higher performance uses http/2 protocol which allows binary framing, multiplexing, header compression, bidirectional communication
+2. strong api contract: server and client share the same protobuf rpc definition with strongly typed data
+3. Automatic code generation: cod that serialize/desierialize data, or ttransfer data between client and server are automatically generated
+
+ 4 TYPES OF GRPC
+ 1. Unary grpc: similar to normal http api, where client sends one signle request and the server responds with one single response
+ 2. Client Streaming grpc: client sends streams of multiple requests and the server replies with a single response
+ 3. Server Streaming grpc: client sends streams of single request and the server replies with multiple responses
+ 4. Bidirectional streaming grpc: client sends  multiple requests and the server replies with a multiple response this happens in parallel,is non blocking and in arbitrary order
+
+ GRPC GATEWAY: write a single server code and generate grpc and http requests at one
+ > A plugin for protobuf compiler
+ > Generate proxy codes from protobuf
+ > Translate http json calls to grpc
+    a. In-process translation: only for unary
+    b. Seperate proxy server, both unary and streaming
+> Write code once, server both grpc and http requests
+
+pb.unimplementedSimpleBankServer() // enables forward compatibility enabling the server to accept request without implementing all functions in the pb interface
+reflection.Register(grpcServer) creates a documentation of server functions for clients
+
+EVENS
+use evans for testing grpc
+> evans --host localhost --port 9090 -r repl // to connect to the server
+> show services
+> call CreateUser // calls an rpc on the server
+> exit to exit evans console
+
+GRPC gateway
+A plugin of protobuf compiler
+> generate proxy codes from protobuf for rpc and http
+> Translates http json calls to grpc
+    a. in-process translation: only for unary calls.
+    b. Seperate proxy server: both unary and streaming calls.
+
+// first goto grpc gateway github to install package
+// note in ths project, we use protoc and not bufs to create the grpc stubs(functions)
+> protoc-gen-grpc-gateway --help
+
+
+GRPC META DATA
+> gives extra associated data for a call
+
+
+github.com/grpc-ecosystem/grpc-gateway ... and searc hfor openai to see swagger docs instructionsu
+
+EMBED FRONTEND FILES TO YOUR GO BINARY USING STATIK
+specify namespace in the statik command from proto command in makefile if you have several static folders e.g for swagger and then our frontend
+
+from proto repo, goto everthing.proto and search for response, description etc to see how to define response schema for swagger docs
+
+
+PARTIAL UPDATE
+https://docs.sqlc.dev/en/stable/howto/named_parameters.html#:~:text=name%20END%20RETURNING%20*%3B-,Nullable%20parameters,Using%20sqlc.
+UPDATE users set hashed_passord = CASE WHEN @set_hashed_passord::boolean = TRUE then @hashed_password ELSE hashed_password END,
+email = CASE
+    WHEN @SET_EMAIL::boolean = TRUE THEN @email ELSE email END
+    WHERE username = $7 RETURING *
+
+CREATING AN API_KEY
+ALTER TABLE users ADD COLUMN api_key VARCHAR(255) UNIQUE NOT NULL (encode(sha256(random()::text::bytea),'hex'))
+
+// updates, update sqlc package
+> sqlc version // current version
+> brew info sqlc // search onliine for its latest stable version
+> brew update sqlc
+// incase of errors, run below
+> brew uninstall sqlc
+> brew install sqlc
+
+
+GRPC OPTIONAL PARAMS
+// use brew to update protobuf
+// USE THE OPTIONAL MODIFIER
+message UpdateUserRequest {
+    string username = 1;
+    optional string full_name = 2;
+    optional string email = 3;
+    optional string password = 4;
+}
+
+
+NOTE:
+Whenever we run the make sqlc command, also run the make mock command from makfile
+
+ADDING AUTH MIDDLEWARE TO RPC
+We can implement authentication by using grpc interceptor, but that'll also mean creating http interceptors too. In our case, we just call it as a function in the api file so it works for http and grpc
+
+
+POSTMAN LOGIN VARIABLE SCRIPT
+> goto test tab
+pm.test("status code is 200", function () {
+    pm.response.to.have.status(200)
+})
+
+var jsonData = JSON.parse(responseBody)
+pm.collectionVariables.set("access_token", jsonData.access_token)
+now in the authorization header value, write {{access_token}} instead of the access token string
+
+WRITE STRUCTURED LOGS FOR GRPC USING GRPC INTERCEPTOR
+Grpc interceptor is simply a function that's called on a request before it's sent to the grpc handler
+Since our rpc is unary, then we implement grpc.UnaryInterceptor to write our logs
+
+When formatting our logs object, we need to make them usable by logg demographics tools like logstash, fluehtd and grapha loki
+we use zerolog package to write structured logs
+logger.info().Str, logger.info().Msg() etc as seen in zerolog github repository
+The log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr}) sets logs to debug mode for development purpose
+
+BACKGROUND WORKERS FOR ASYNCHRONOUS EVENTS
+1.  using go routines
+2. USING async queue background workers
+//here we use the asynq library: A go library for queueing tasks and processing them asynchronously with workers. It's backed by redis and is designed to be scalable yet easy to get started.
+High level overview of how asyncq works:
+. clinet puts tasks on a queue
+. Server pulls tasks off queues and starts a worker go routine for each task
+. Tasks are processed concurrently by multiple worksers
+
+Task queues are used as a mechanism to distribute work across multiple machines. A system can consist of multiple workser servers and brokers, giving way to high availability and horizontal scaling.
+
+TESTS
+add --short flag to the test command and use if test.short() test.skip() to conditionally skip tests
+
+in vscode goto: settings -> search go test flag _> edit in settings.json
+add
+"go.testFlags": [
+    "-v",  // verbose output, normally go only prints outs logs if the test fails, but with this, it'll always print out the logs even if the test passed when ran from vscode
+    "-count=1" // disable test cache so test always runs when we click the run test button even if ther's no change in the code or the test
+    "--short" // can also add this here, but we don't becuase when developing the feature, we always want to run the test and not skip it
+]
+
+
+MIGRATIONS
+in the makefile -> newMigration, we indicated $(name) as cli arguement
+> make new_migration name=add_verify_emails
+
+DROP TABLE IF EXISTS table_name CASCADE // note the cascade keyword means that if there are records in another table constrained to this table, the constraint is first removed,  then they'll all be deleted too
+

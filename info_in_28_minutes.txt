@@ -1,0 +1,69 @@
+// to build a dockerfile 
+> docker build -t in28min/hello:0.0.REALEASE . (this '.' is called the build context, which iis the directory where the contents of image is located )
+
+> docker login // to log into docker from cmd through browser 
+> docker build -t <docker_id>/<custom repository name>:<tag>
+> docker push in28min/hello-world-python:0.0.2.REALEASE
+
+//USING CACHE TO RUN SOME STEPS 
+dockerfile ...
+
+FROM node:8.16.1-alpine 
+WORKDIR /app 
+COPY package.json /app 
+RUN npm install 
+EXPOSE 5000 
+COPY . /app 
+CMD node index.js 
+
+// running the copy package.json as an independent step uses dependencies from cache after first build 
+
+ENTRY POINT VS CMD 
+docker run -d -p 5000:5000 <image name> ping google.com (pings google instead of running application after pull)
+using CMD, we execute whatever we attach in cmd (e.g ping google.com) and overrides the docker cmd arguement 
+but with entrypoint, the dockerfile arguement is first ran and not overriden by cmd arguements 
+
+// To override entry point, we use the --entrypoint flag 
+> docker run -d -p 5000:5000 --entrypoint [node, index] <image name> 
+
+
+USING MICROSERVICES 
+docker run -p 8000:8000 --name=currency-exchange <image name> 
+
+containers in docker don't communicate directly, but do so using a bridge network 
+
+> docker network ls // shows network 
+> docker inspect bridge // shows the containers in a bridge network 
+> docker run -d -p 8080:8080 --name=<custom name> --link <contaner 2 to link to > <container 1 image name > 
+
+
+HOW DOES CURRRENCY CONVERSION KNOW THE LOCATION OF CURRENCY EXCAHANGE? 
+> You don't want to hardcode 
+> configure your environment variables 
+> --env CURRENCY_EXCHANGE_SERVICE_HOST=HTTP://CURRENCY-EXCHANGE 
+
+FULL COMMAND 
+> docker run -d -p 8100:8100 --env CURRENCY_EXCHANGE_SERVICE_HOST=http://currency-exchange --name=currency-currency-conoversion --link currency-exchange in28min/currency-conversion:0.0.1-RELEASE
+
+// above runs currency-conversion and links it to already currency-conversion
+/// Above we created a connection using links, however, link is not the recommended option, we're explore the recomemended options below: 
+
+> docker network ntework ls // shows 3 networks, bridge, host or none(containers are not linked)
+
+//CREATING OUR OWN NETWORK 
+> docker network create currenty-network 
+//now run containers as part of this netwrok 
+> doccker run -d -p 8000:8000 --name=currency--exchange --network=currency-network currency-exchange // for the first container 
+> docker run -d -p 8100:8100 --env CURRENCY_EXCHANGE_SERVICE_HOST=http://currency-exchange --name=currency-conversion --network=currency-network in28min/currency-conversion:0.0.1-RELEASE
+
+
+ USING DOCKER-COMPOSE TO SIMPLIFY LAUNCHING MICROSERVICES 
+ see folder microservices/docker-compose.yml 
+ > docker-compose events // just like docker system events, shows all commands or events on docker-compose created containers 
+ > docker-compose config // shows the docker-compose.yml config used in creating the containers . useful in validating the yml file 
+ > docker-compose images //show all images on docker compose 
+ > docker-compose ps // list containers 
+ > docker-compose top // show top processes in containers 
+ > docker-compose pause or unpause 
+ > docker-compose stop 
+ > docker-comopse kill 
